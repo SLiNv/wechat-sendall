@@ -8,7 +8,8 @@ import re, shutil, xml.dom.minidom, json
 import netrc
 import os.path, time
 import random
-from optparse import OptionParser
+#from optparse import OptionParser
+import argparse
 
 from SimpleHTTPServer import SimpleHTTPRequestHandler
 from BaseHTTPServer import HTTPServer
@@ -26,8 +27,8 @@ def debugReq(r):
   # print >>sys.stderr, r.text
   print >> sys.stderr, s.cookies.get_dict()
 
-real_send = False
-http_port = 5678
+#real_send = False
+#http_port = 5678
 
 uuid = ''
 redirect_uri = ''
@@ -74,7 +75,7 @@ def getUUID():
   return False
 
 
-def getQRImage():
+def getQRImage(http_port):
   path = os.path.join(os.getcwd(), "qrcode.jpg")
   url = "https://login.weixin.qq.com/qrcode/" + uuid
   r = s.get(url, stream=True)
@@ -309,17 +310,23 @@ def striphtml(data):
     return p.sub('', data)
 
 def main():
-  global real_send, http_port
-  parser = OptionParser(usage='%prog [options]',
-    description='send custom message to your friend on wechat, default dry run')
-  parser.add_option('-s', '--sendall',action='store_true', help='send message to your friend, please double check')
-  parser.add_option('-p', '--port',type='int', help='http server port listen')
+  real_send = False
+  http_port = 5678
+  
+  parser = argparse.ArgumentParser(description='Send broadcase messages to your \
+  friends on wechat with their names. Run with no argument will only send to yourself.')
+  parser.add_argument('-s', '--sendall', action='store_true', dest='sendall_switch', 
+                      help='Send messages to all friends, please \
+                      double check before sending.')
+  parser.add_argument('-p', '--port', type=int, action='store', dest='port', 
+                      default=5678, help='HTTP server port that the program listens to.')
+  
 
-  (options, args) = parser.parse_args()
-  if options.sendall:
-    real_send = options.sendall
-  if options.port:
-    http_port = options.port
+  result = parser.parse_args()
+  if result.sendall_switch:
+    real_send = True
+  http_port = result.port
+  
 
   server = HTTPServer(('0.0.0.0', http_port), SimpleHTTPRequestHandler)
   thread = threading.Thread(target = server.serve_forever)
@@ -335,7 +342,7 @@ def main():
     print "[-] UUID get fail"
     return
   print "[+] Getting QR Image..."
-  getQRImage()
+  getQRImage(http_port)
   while waitForLogin() != '200':
     pass
 
